@@ -27,23 +27,17 @@ const page = () => {
 
     async function onSubmit(formData) {
 
-        console.log(formData)
-
         toast.remove();
 
         const result = await saveZerodhaValues(formData);
 
-        // if (result) {
-        //     if (result.status == 'success') {
-        //         toast.success('Kite values updated successfully')
-        //     }
+        console.log(result)
 
-        //     if (result.status == 'error') {
-        //         toast.error(result.message)
-        //     }
-        // } else {
-        //     toast.error('Server error occured')
-        // }
+        if (result.status) {
+            toast.success(result.client_message)
+        } else {
+            toast.error(result.client_message)
+        }
     }
 
     const [user_info, setuser_info] = useState({})
@@ -92,7 +86,7 @@ const page = () => {
 
                                         <div className="mb-5">
                                             <label htmlFor="api_key" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Zerodha API Key</label>
-                                            <input onChange={handleApiKeyChange} defaultValue={user_info.api_key} {...register("api_key")} type="text" id="api_key" className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 dark:shadow-sm-light" required />
+                                            <input placeholder='API Key Here' defaultValue={user_info.api_key} {...register("api_key", { onChange: (e) => { handleApiKeyChange(e) } })} type="text" id="api_key" className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 dark:shadow-sm-light" required />
                                             {errors.api_key && (
                                                 <small className="text-red-500">{`${errors.api_key.message}`}</small>
                                             )}
@@ -100,7 +94,7 @@ const page = () => {
 
                                         <div className="mb-5">
                                             <label htmlFor="secret_key" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Zerodha Secret Key</label>
-                                            <input defaultValue={user_info.api_secret} {...register("secret_key")} type="text" id="secret_key" className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 dark:shadow-sm-light" required />
+                                            <input placeholder='Secret Key Here' defaultValue={user_info.api_secret} {...register("secret_key")} type="text" id="secret_key" className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 dark:shadow-sm-light" required />
                                             {errors.secret_key && (
                                                 <small className="text-red-500">{`${errors.secret_key.message}`}</small>
                                             )}
@@ -108,9 +102,9 @@ const page = () => {
 
                                         <div className="mb-5">
                                             <label htmlFor="request_token" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Zerodha Request Token</label>
-                                            <input defaultValue={user_info.request_token} {...register("request_token")} type="text" id="request_token" className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 dark:shadow-sm-light" required />
+                                            <input placeholder='Request token Key Here' defaultValue={user_info.request_token} {...register("request_token")} type="text" id="request_token" className="shadow-sm bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500 dark:shadow-sm-light" required />
 
-                                            {setApiKey === '' ? (<></>) : (
+                                            {apiKey === '' || apiKey === null ? (<></>) : (
                                                 <small className='underline'>
                                                     <Link href={`https://kite.zerodha.com/connect/login?v=3&api_key=${apiKey}`} target="_blank" rel="noopener noreferrer">Click here to get Request Token</Link>
                                                 </small>

@@ -36,8 +36,6 @@ export async function checkLogin(formData) {
 
         let db_response = await get_table_data_by_array(sql)
 
-        console.log(db_response)
-
         if (db_response[0].length === 0) {
             return {
                 success: false,
@@ -104,6 +102,160 @@ export async function saveZerodhaValues(formData) {
 
     user_data = user_data[0][0]
 
+    if (Object.keys(user_data).length > 0) {
+
+        if (user_data.api_key != null) {
+
+            const urlencoded = new URLSearchParams();
+            urlencoded.append("api_key", formData.api_key);
+            urlencoded.append("request_token", formData.request_token);
+            urlencoded.append("checksum", sha256Hash(formData.api_key + formData.request_token + formData.secret_key));
+
+            const myHeaders = new Headers();
+            myHeaders.append("X-Kite-Version", "3");
+            myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+            const kite_access_token = await fetch("https://api.kite.trade/session/token", {
+                method: 'POST',
+                headers: myHeaders,
+                body: urlencoded,
+                redirect: "follow"
+            }).then((response) => response.text())
+                .then(async (result) => {
+                    result = JSON.parse(result)
+                    if (result.status == 'error') {
+                        return {
+                            status: false,
+                            response: result,
+                            message: 'JSON not converted',
+                            client_message: result.message
+                        }
+                    } else {
+                        let update_access_token = await update_data_in_table({
+                            table_name: 'kite_credentials',
+                            where_array: {
+                                user_id: user_data.id
+                            },
+                            data: {
+                                api_key: formData.api_key,
+                                api_secret: formData.secret_key,
+                                request_token: formData.request_token,
+                                is_expired: 0,
+                                access_token: result.data.access_token
+                            }
+                        })
+
+                        if (update_access_token.status) {
+                            return {
+                                status: true,
+                                response: JSON.stringify(update_access_token),
+                                message: 'Kite Credentials Updated Successfully',
+                                client_message: 'Kite Credentials Updated Successfully'
+                            }
+                        } else {
+                            return {
+                                status: false,
+                                response: JSON.stringify(update_access_token),
+                                message: 'SQL Updation Error',
+                                client_message: 'Server Error Occured'
+                            }
+                        }
+
+                    }
+                })
+                .catch((error) => {
+                    return {
+                        status: false,
+                        response: error,
+                        message: 'Session API Issue',
+                        client_message: 'Server Error Occured'
+                    }
+                });
+
+            return kite_access_token
+
+        } else {
+
+            const urlencoded = new URLSearchParams();
+            urlencoded.append("api_key", formData.api_key);
+            urlencoded.append("request_token", formData.request_token);
+            urlencoded.append("checksum", sha256Hash(formData.api_key + formData.request_token + formData.secret_key));
+
+            const myHeaders = new Headers();
+            myHeaders.append("X-Kite-Version", "3");
+            myHeaders.append("Content-Type", "application/x-www-form-urlencoded");
+
+            const kite_access_token = await fetch("https://api.kite.trade/session/token", {
+                method: 'POST',
+                headers: myHeaders,
+                body: urlencoded,
+                redirect: "follow"
+            }).then((response) => response.text())
+                .then(async (result) => {
+                    result = JSON.parse(result)
+                    if (result.status == 'error') {
+                        return {
+                            status: false,
+                            response: result,
+                            message: 'JSON not converted',
+                            client_message: result.message
+                        }
+                    } else {
+
+                        let kite_data = {
+                            table_name: 'kite_credentials',
+                            data: [{
+                                user_id: user_data.id,
+                                api_key: formData.api_key,
+                                api_secret: formData.secret_key,
+                                request_token: formData.request_token,
+                                is_expired: 0,
+                                access_token: result.data.access_token
+                            }]
+                        }
+
+                        let res = await insert_data_in_table(kite_data)
+
+                        if (res && res.length > 0 && res[0].hasOwnProperty('insertId')) {
+                            return {
+                                status: true,
+                                response: JSON.stringify(res),
+                                message: 'Kite Credentials Inserted Successfully',
+                                client_message: 'Kite Credentials Updated Successfully'
+                            }
+                        } else {
+                            return {
+                                status: false,
+                                response: JSON.stringify(res),
+                                message: 'Insertion Not Happened',
+                                client_message: 'Server Error Occured'
+                            }
+                        }
+
+                    }
+                })
+                .catch((error) => {
+                    return {
+                        status: false,
+                        response: error,
+                        message: 'Session API Issue',
+                        client_message: 'Server Error Occured'
+                    }
+                });
+
+            return kite_access_token
+        }
+
+    } else {
+
+        return {
+            status: false,
+            response: user_data,
+            message: 'Form Data not in proper format',
+            client_message: 'Server Error Occured'
+        }
+
+    }
 
 }
 
@@ -120,28 +272,128 @@ export async function get_token_status() {
 
 
 export async function buy_instrument(formData) {
-    console.log(formData)
 
-    let instrument = await get_table_data_by_array({
-        table_name: 'instruments', where_array: {
-            instrument_token: formData.instrument_token
-        }, order_by: 'id'
-    })
+    let sql = 'SELECT kite_credentials.* FROM `users` LEFT JOIN kite_credentials ON users.id = kite_credentials.user_id WHERE users.id = 1 AND kite_credentials.is_expired = 0;';
 
-    instrument = instrument[0][0]
+    let kite_credentials = await run_raw_sql(sql)
 
-    console.log(instrument)
+    if (kite_credentials[0].length > 0) {
 
-    return {
-        status: true,
-        response: 'buy instrument response',
-        message: 'Successfull',
+        kite_credentials = kite_credentials[0][0]
+
+        const myHeaders = new Headers();
+        myHeaders.append("X-Kite-Version", "3");
+        myHeaders.append("Authorization", "token " + kite_credentials.api_key + ":" + kite_credentials.access_token);
+
+        const requestOptions = {
+            method: "GET",
+            headers: myHeaders,
+            redirect: "follow"
+        };
+
+        let order_status = await fetch("https://api.kite.trade/quote?i=" + formData.exchange + ":" + formData.trading_symbol, requestOptions)
+            .then((response) => response.text())
+            .then(async (result) => {
+
+                result = JSON.parse(result)
+
+                if (!(Object.keys(result.data).length === 0)) {
+
+                    let [instrument] = Object.values(result.data)
+
+                    if (formData.hasOwnProperty('stopLossAmount')) {
+
+                        let insert_order = await insert_data_in_table({
+                            table_name: 'orders',
+                            data: [{
+                                instrument_token: instrument.instrument_token,
+                                purchased_at: instrument.last_price,
+                                quantity_purchased: formData.quantity,
+                                stop_loss_amt: formData.stopLossAmount
+                            }]
+                        })
+
+                        if (insert_order && insert_order.length > 0 && insert_order[0].hasOwnProperty('insertId')) {
+                            return {
+                                status: true,
+                                response: JSON.stringify(insert_order),
+                                message: 'Order Inserted Successfully',
+                                client_message: 'Order Placed Successfully',
+                            }
+                        } else {
+                            return {
+                                status: false,
+                                response: JSON.stringify(insert_order),
+                                message: 'Order Not Inserted',
+                                client_message: 'Server Error Occured',
+                            }
+                        }
+
+                    } else {
+
+                        let insert_order = await insert_data_in_table({
+                            table_name: 'orders',
+                            data: [{
+                                instrument_token: instrument.instrument_token,
+                                purchased_at: instrument.last_price,
+                                quantity_purchased: formData.quantity
+                            }]
+                        })
+
+                        if (insert_order && insert_order.length > 0 && insert_order[0].hasOwnProperty('insertId')) {
+                            return {
+                                status: true,
+                                response: JSON.stringify(insert_order),
+                                message: 'Order Inserted Successfully',
+                                client_message: 'Order Placed Successfully',
+                            }
+                        } else {
+                            return {
+                                status: false,
+                                response: JSON.stringify(insert_order),
+                                message: 'Order Not Inserted',
+                                client_message: 'Server Error Occured',
+                            }
+                        }
+
+                    }
+
+                } else {
+                    return {
+                        status: false,
+                        response: JSON.stringify(result),
+                        message: 'Trading Symbol not correct',
+                        client_message: 'Server Error Occured',
+                    }
+                }
+
+            })
+            .catch((error) => {
+                return {
+                    status: false,
+                    response: error,
+                    message: 'Quote API Error',
+                    client_message: 'Server Error Occured',
+                }
+            });
+
+        return order_status
+
+    } else {
+        return {
+            status: false,
+            response: JSON.stringify(kite_credentials),
+            message: 'Access Token Expired',
+            client_message: 'Server Error Occured',
+        }
     }
-
-
 
 }
 
+
+export async function get_positions() {
+
+}
 
 
 function sha256Hash(data) {
@@ -150,5 +402,3 @@ function sha256Hash(data) {
     hash.update(data);
     return hash.digest('hex');
 }
-
-

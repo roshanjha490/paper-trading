@@ -6,8 +6,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from 'react-hook-form'
 import { useState } from 'react';
 import { buy_instrument } from '@/app/actions';
+import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation'
+
 
 const PurchaseFormModal = ({ instrument, index, onClose }) => {
+    const router = useRouter();
 
     const [showStopLossInput, setShowStopLossInput] = useState(false);
 
@@ -22,15 +26,20 @@ const PurchaseFormModal = ({ instrument, index, onClose }) => {
             required_error: "Instrument Token is required",
             invalid_type_error: "Instrument Token must be a string",
         }),
-        price: z.preprocess((val) => Number(val), z.number({
-            required_error: "Price is required",
-            invalid_type_error: "Price must be a number",
-        }).gte(1, { message: "Price must be greater than or equal to 1" })),
+        exchange: z.string({
+            required_error: "Exchange is required",
+            invalid_type_error: "Exchange must be a string",
+        }),
+        trading_symbol: z.string({
+            required_error: "Trading Symbol is required",
+            invalid_type_error: "Trading Symbol Token must be a string",
+        }),
+        quantity: z.preprocess((val) => Number(val), z.number({
+            required_error: "Quantity is required",
+            invalid_type_error: "Quantity must be a number",
+        }).gte(1, { message: "Quantity must be greater than or equal to 1" })),
 
-        stopLossAmount: z.preprocess((val) => Number(val), z.number({
-            required_error: "Stop Loss is required",
-            invalid_type_error: "Stop Loss must be a number",
-        }).superRefine((val, ctx) => {
+        stopLossAmount: z.string().optional().superRefine((val, ctx) => {
             if (showStopLossInput) {
                 if (val < 1) {
                     ctx.addIssue({
@@ -39,7 +48,7 @@ const PurchaseFormModal = ({ instrument, index, onClose }) => {
                     });
                 }
             }
-        }))
+        })
     });
 
     const {
@@ -53,10 +62,17 @@ const PurchaseFormModal = ({ instrument, index, onClose }) => {
 
 
     async function onSubmit(formData) {
+        toast.remove();
 
-        const response = await buy_instrument(formData)
+        const result = await buy_instrument(formData)
 
-        console.log(response);
+        if (result.status) {
+            toast.success(result.client_message)
+            reset()
+            router.push('/live-trade');
+        } else {
+            toast.error(result.client_message)
+        }
 
     }
 
@@ -78,18 +94,20 @@ const PurchaseFormModal = ({ instrument, index, onClose }) => {
                         <form onSubmit={handleSubmit(onSubmit)} className="p-4 md:p-5">
 
                             <input type="hidden" {...register("instrument_token")} value={instrument.instrument_token} />
+                            <input type="hidden" {...register("exchange")} value={instrument.exchange} />
+                            <input type="hidden" {...register("trading_symbol")} value={instrument.trading_symbol} />
 
                             <div className="grid gap-4 mb-[30px] grid-cols-1">
                                 <div className="col-span-2 sm:col-span-1">
-                                    <label for="price" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Quantity</label>
-                                    <input type="number" {...register("price")} id="price" className="m-[0px] bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="100" />
-                                    {errors.price && (
+                                    <label for="quantity" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Quantity</label>
+                                    <input type="number" {...register("quantity")} id="quantity" className="m-[0px] bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-600 dark:border-gray-500 dark:placeholder-gray-400 dark:text-white dark:focus:ring-primary-500 dark:focus:border-primary-500" placeholder="100" />
+                                    {errors.quantity && (
                                         <>
-                                            <small className="text-red-500">{`${errors.price.message}`}</small>
+                                            <small className="text-red-500">{`${errors.quantity.message}`}</small>
                                             <br />
                                         </>
                                     )}
-                                    <small><i>** Instruments will be purchased on current trading price **</i></small>
+                                    <small><i>** Instruments will be purchased on current trading quantity **</i></small>
                                 </div>
                             </div>
 

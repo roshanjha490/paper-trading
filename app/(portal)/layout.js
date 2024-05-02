@@ -6,8 +6,8 @@ import { redirect } from 'next/navigation'
 import ProfileBtn from "./components/ProfileBtn";
 import NavBar from "./components/NavBar";
 import { Toaster } from 'react-hot-toast';
-import ExpiredToken from "./components/ExpiredToken";
-import { get_token_status } from "../actions";
+// import ExpiredToken from "./components/ExpiredToken";
+// import { get_token_status } from "../actions";
 
 
 const inter = Inter({ subsets: ["latin"] });
@@ -21,7 +21,7 @@ const NotesLayout = async ({ children }) => {
 
     const session = await getServerSession()
 
-    const token_status = get_token_status()
+    // const token_status = get_token_status()
 
     if (session && session.user) {
         return (
