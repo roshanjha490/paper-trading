@@ -273,6 +273,14 @@ export async function get_token_status() {
 
 export async function buy_instrument(formData) {
 
+    const session = await getServerSession()
+
+    let user_sql = 'SELECT users.* FROM `users` WHERE `email` = "' + session.user.email + '"';
+
+    let user_data = await run_raw_sql(user_sql)
+
+    user_data = user_data[0][0]
+
     let sql = 'SELECT kite_credentials.* FROM `users` LEFT JOIN kite_credentials ON users.id = kite_credentials.user_id WHERE users.id = 1 AND kite_credentials.is_expired = 0;';
 
     let kite_credentials = await run_raw_sql(sql)
@@ -307,6 +315,9 @@ export async function buy_instrument(formData) {
                             table_name: 'orders',
                             data: [{
                                 instrument_token: instrument.instrument_token,
+                                user_id: user_data.id,
+                                order_type: 'PUR',
+                                instrument_type: formData.instrument_type,
                                 purchased_at: instrument.last_price,
                                 quantity_purchased: formData.quantity,
                                 stop_loss_amt: formData.stopLossAmount
@@ -335,6 +346,9 @@ export async function buy_instrument(formData) {
                             table_name: 'orders',
                             data: [{
                                 instrument_token: instrument.instrument_token,
+                                user_id: user_data.id,
+                                order_type: 'PUR',
+                                instrument_type: formData.instrument_type,
                                 purchased_at: instrument.last_price,
                                 quantity_purchased: formData.quantity
                             }]
@@ -392,6 +406,14 @@ export async function buy_instrument(formData) {
 
 
 export async function get_positions() {
+
+    const session = await getServerSession()
+
+    let sql = 'SELECT orders.* FROM `orders` INNER JOIN users ON orders.user_id = users.id WHERE users.email = "' + session.user.email + '" AND orders.order_type = "PUR"';
+
+    let response = await run_raw_sql(sql)
+
+    return response[0]
 
 }
 

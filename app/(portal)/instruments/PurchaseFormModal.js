@@ -34,6 +34,10 @@ const PurchaseFormModal = ({ instrument, index, onClose }) => {
             required_error: "Trading Symbol is required",
             invalid_type_error: "Trading Symbol Token must be a string",
         }),
+        instrument_type: z.string({
+            required_error: "Instrument Type is required",
+            invalid_type_error: "Instrument Type Token must be a string",
+        }),
         quantity: z.preprocess((val) => Number(val), z.number({
             required_error: "Quantity is required",
             invalid_type_error: "Quantity must be a number",
@@ -96,6 +100,7 @@ const PurchaseFormModal = ({ instrument, index, onClose }) => {
                             <input type="hidden" {...register("instrument_token")} value={instrument.instrument_token} />
                             <input type="hidden" {...register("exchange")} value={instrument.exchange} />
                             <input type="hidden" {...register("trading_symbol")} value={instrument.trading_symbol} />
+                            <input type="hidden" {...register("instrument_type")} value={instrument.instrument_type} />
 
                             <div className="grid gap-4 mb-[30px] grid-cols-1">
                                 <div className="col-span-2 sm:col-span-1">

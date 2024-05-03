@@ -20,62 +20,69 @@ const KiteTicker = require("kiteconnect").KiteTicker;
 
 
 // Method defined for websocket
-// wss.on('connection', function connection(ws) {
+wss.on('connection', async function connection(ws) {
 
-//     console.log('Client connected');
+    let credential = await get_table_data_by_array({
+        table_name: 'kite_credentials',
+        where_array: {
+            user_id: 1,
+            is_expired: 0
+        },
+        order_by: 'id'
+    })
 
-//     let ticker = new KiteTicker({
-//         api_key: "aad3nrtt1a6xj5es",
-//         access_token: "Ena0tZGFuBmCCFVF5QvDytz5RLnEoPMw",
-//     });
+    let ticker = new KiteTicker({
+        api_key: credential.api_key,
+        access_token: credential.access_token,
+    });
 
-//     ticker.connect();
+    ticker.connect();
 
-//     ticker.on("ticks", onTicks);
+    ticker.on("ticks", onTicks);
 
-//     ticker.on("connect", subscribe);
+    ticker.on("connect", subscribe);
 
-//     ticker.on("disconnect", () => {
-//         console.log('Kite is Disconnected automatically')
-//     });
+    ticker.on("disconnect", () => {
+        console.log('Kite is Disconnected automatically')
+    });
 
-//     function onTicks(ticks) {
-//         if (ws.readyState === WebSocket.OPEN) {
-//             ws.send(JSON.stringify(ticks));
-//         }
-//     }
+    function onTicks(ticks) {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify(ticks));
+        }
+    }
 
-//     let items = [408065];
+    let items = [408065];
 
-//     function subscribe() {
-//         ticker.subscribe(items);
-//         ticker.setMode(ticker.modeFull, items);
-//     }
+    function subscribe() {
+        ticker.subscribe(items);
+        ticker.setMode(ticker.modeFull, items);
+    }
 
-//     ws.on('message', function incoming(message) {
+    ws.on('message', function incoming(message) {
 
-//         console.log(message)
+        console.log(message)
 
-//         ticker.unsubscribe(items);
+        ticker.unsubscribe(items);
 
-//         items = JSON.parse(message);
+        items = JSON.parse(message);
 
-//         ticker.subscribe(items);
+        ticker.subscribe(items);
 
-//         ticker.setMode(ticker.modeFull, items);
-//     });
+        ticker.setMode(ticker.modeFull, items);
+    });
 
-//     ws.on('close', function close() {
-//         console.log('Client disconnected');
-//     });
-// });
+    ws.on('close', function close() {
+        console.log('Client disconnected');
+    });
+});
 
 
 
 // Creation of Server
-// server.listen(3001, function listening() {
-//     console.log('WebSocket server is listening on port 3001');
-// });
+server.listen(3001, function listening() {
+    console.log('WebSocket server is listening on port 3001');
+});
 
 
 

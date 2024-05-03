@@ -18,11 +18,11 @@ class CreateOrdersTable extends Migration
 
             $table->integer('instrument_token');
 
-            $table->integer('purchased_at')->nullable();
+            $table->float('purchased_at')->nullable();
             $table->integer('quantity_purchased')->nullable();
             $table->integer('purchased_amt')->nullable();
 
-            $table->integer('sold_at')->nullable();
+            $table->float('sold_at')->nullable();
             $table->integer('quantity_sold')->nullable();
             $table->integer('sold_amt')->nullable();
 
