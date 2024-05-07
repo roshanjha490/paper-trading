@@ -112,7 +112,7 @@ const PurchaseFormModal = ({ instrument, index, onClose }) => {
                                             <br />
                                         </>
                                     )}
-                                    <small><i>** Instruments will be purchased on current trading quantity **</i></small>
+                                    <small><i>** Instruments will be purchased on current trading price **</i></small>
                                 </div>
                             </div>
 

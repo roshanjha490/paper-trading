@@ -1,7 +1,28 @@
 import { useEffect, useState } from 'react';
+import { get_positions } from '@/app/actions';
 
-const useWebSocket = () => {
+const useWebSocket = (instrument_tokens) => {
+
     const [messages, setMessages] = useState([]);
+
+    const [new_positions, setNewPositions] = useState([]);
+
+    useEffect(() => {
+        const fetchPositions = async () => {
+            const response = await get_positions();
+            setNewPositions(response);
+
+            const newInstrumentTokens = response.map(position => {
+                return { instrument_token: position.instrument_token, current_price: 0};
+            });
+
+            setMessages(newInstrumentTokens);
+        };
+
+        fetchPositions();
+
+    }, []);
+
 
     useEffect(() => {
 
@@ -30,12 +51,12 @@ const useWebSocket = () => {
                         if (correspondingTickData) {
                             return {
                                 ...message,
-                                current_price: correspondingTickData.last_price,
-                                opening_price: correspondingTickData.ohlc.open
+                                current_price: correspondingTickData.last_price
                             };
                         }
                         return message;
                     });
+
                     return updatedMessages;
                 });
 
@@ -50,7 +71,7 @@ const useWebSocket = () => {
         fetchData()
 
 
-    }, []);
+    }, [new_positions]);
 
     return messages;
 };

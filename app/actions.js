@@ -315,6 +315,8 @@ export async function buy_instrument(formData) {
                             table_name: 'orders',
                             data: [{
                                 instrument_token: instrument.instrument_token,
+                                trading_symbol: formData.trading_symbol,
+                                exchange: formData.exchange,
                                 user_id: user_data.id,
                                 order_type: 'PUR',
                                 instrument_type: formData.instrument_type,
@@ -329,7 +331,7 @@ export async function buy_instrument(formData) {
                                 status: true,
                                 response: JSON.stringify(insert_order),
                                 message: 'Order Inserted Successfully',
-                                client_message: 'Order Placed Successfully',
+                                client_message: 'Order Placed Successfully @₹' + instrument.last_price,
                             }
                         } else {
                             return {
@@ -346,6 +348,8 @@ export async function buy_instrument(formData) {
                             table_name: 'orders',
                             data: [{
                                 instrument_token: instrument.instrument_token,
+                                trading_symbol: formData.trading_symbol,
+                                exchange: formData.exchange,
                                 user_id: user_data.id,
                                 order_type: 'PUR',
                                 instrument_type: formData.instrument_type,
@@ -405,11 +409,137 @@ export async function buy_instrument(formData) {
 }
 
 
+export async function sell_instrument(formData) {
+
+    let order_details = await get_table_data_by_array({
+        table_name: 'orders',
+        where_array: {
+            id: formData.instrument_id
+        },
+        order_by: 'id'
+    });
+
+    console.log(order_details)
+
+    if (order_details[0].length > 0) {
+
+        order_details = order_details[0][0]
+
+        if (order_details.quantity_purchased < formData.quantity) {
+            return {
+                status: false,
+                response: JSON.stringify(order_details),
+                message: 'Order Details',
+                client_message: 'Sell Quantity is more than Purchased Quantity',
+            }
+        }
+
+        let sql = 'SELECT kite_credentials.* FROM `users` LEFT JOIN kite_credentials ON users.id = kite_credentials.user_id WHERE users.id = 1 AND kite_credentials.is_expired = 0;';
+
+        let kite_credentials = await run_raw_sql(sql)
+
+        if (kite_credentials[0].length > 0) {
+
+            kite_credentials = kite_credentials[0][0]
+
+            const myHeaders = new Headers();
+            myHeaders.append("X-Kite-Version", "3");
+            myHeaders.append("Authorization", "token " + kite_credentials.api_key + ":" + kite_credentials.access_token);
+
+            const requestOptions = {
+                method: "GET",
+                headers: myHeaders,
+                redirect: "follow"
+            };
+
+            let order_status = await fetch("https://api.kite.trade/quote?i=" + order_details.exchange + ":" + order_details.trading_symbol, requestOptions)
+                .then((response) => response.text())
+                .then(async (result) => {
+
+                    result = JSON.parse(result)
+
+                    let [instrument] = Object.values(result.data)
+
+                    if (!(Object.keys(result.data).length === 0)) {
+                        let insert_order = await insert_data_in_table({
+                            table_name: 'orders',
+                            data: [{
+                                instrument_token: order_details.instrument_token,
+                                trading_symbol: order_details.trading_symbol,
+                                exchange: order_details.exchange,
+                                user_id: order_details.user_id,
+                                order_type: 'SELL',
+                                instrument_type: order_details.instrument_type,
+                                sold_at: instrument.last_price,
+                                quantity_sold: formData.quantity,
+                                order_id: order_details.id
+                            }]
+                        })
+
+                        if (insert_order && insert_order.length > 0 && insert_order[0].hasOwnProperty('insertId')) {
+                            return {
+                                status: true,
+                                response: JSON.stringify(insert_order),
+                                message: 'Order Inserted Successfully',
+                                client_message: 'Poisition Sold Successfully @₹' + instrument.last_price,
+                            }
+                        } else {
+                            return {
+                                status: false,
+                                response: JSON.stringify(insert_order),
+                                message: 'Order Not Inserted',
+                                client_message: 'Server Error Occured',
+                            }
+                        }
+
+                    } else {
+                        return {
+                            status: false,
+                            response: JSON.stringify(result),
+                            message: 'Trading Symbol not correct',
+                            client_message: 'Server Error Occured',
+                        }
+                    }
+                })
+                .catch((error) => {
+                    return {
+                        status: false,
+                        response: error,
+                        message: 'Quote API Error',
+                        client_message: 'Server Error Occured',
+                    }
+                });
+
+            return order_status
+
+
+        } else {
+            return {
+                status: false,
+                response: kite_credentials,
+                message: 'Access Token Expired',
+                client_message: 'Server Error Occured',
+            }
+        }
+    } else {
+        return {
+            status: false,
+            response: JSON.stringify(order_details),
+            message: 'Order Details Not Found',
+            client_message: 'Server Error Occured',
+        }
+    }
+
+
+
+}
+
+
 export async function get_positions() {
 
     const session = await getServerSession()
 
-    let sql = 'SELECT orders.* FROM `orders` INNER JOIN users ON orders.user_id = users.id WHERE users.email = "' + session.user.email + '" AND orders.order_type = "PUR"';
+    let sql = 'SELECT o1.*, o1.quantity_purchased - COALESCE(SUM(o2.quantity_sold), 0) AS remaining_quantity FROM orders o1 LEFT JOIN orders o2 ON o1.id = o2.order_id AND o2.order_type = "SELL" INNER JOIN users u ON o1.user_id = u.id WHERE u.email = "' + session.user.email + '" AND o1.order_type = "PUR" GROUP BY o2.order_id';
 
     let response = await run_raw_sql(sql)
 

@@ -31,6 +31,8 @@ wss.on('connection', async function connection(ws) {
         order_by: 'id'
     })
 
+    credential = credential[0][0]
+
     let ticker = new KiteTicker({
         api_key: credential.api_key,
         access_token: credential.access_token,
@@ -83,7 +85,6 @@ wss.on('connection', async function connection(ws) {
 server.listen(3001, function listening() {
     console.log('WebSocket server is listening on port 3001');
 });
-
 
 
 
