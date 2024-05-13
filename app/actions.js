@@ -419,8 +419,6 @@ export async function sell_instrument(formData) {
         order_by: 'id'
     });
 
-    console.log(order_details)
-
     if (order_details[0].length > 0) {
 
         order_details = order_details[0][0]
@@ -544,6 +542,20 @@ export async function get_positions() {
     let response = await run_raw_sql(sql)
 
     return response[0]
+
+}
+
+
+export async function get_trades() {
+
+    const session = await getServerSession()
+
+    let sql = 'SELECT o1.*, o2.purchased_at FROM orders o1 LEFT JOIN orders o2 ON o1.order_id = o2.id INNER JOIN users u ON o1.user_id = u.id WHERE u.email = "' + session.user.email + '" AND o1.order_type = "SELL" ';
+
+    let response = await run_raw_sql(sql)
+
+    return response[0]
+
 
 }
 

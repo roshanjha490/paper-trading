@@ -1,9 +1,7 @@
 "use client"
 import React from 'react';
-import SignOut from '../components/ProfileBtn';
 import { useState, useEffect } from 'react';
 import useWebSocket from './websocket';
-import { LuRefreshCcwDot } from "react-icons/lu";
 import { get_positions } from '@/app/actions';
 import SellFormModal from './SellFormModal';
 

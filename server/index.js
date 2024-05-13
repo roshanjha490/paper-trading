@@ -16,11 +16,13 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const KiteTicker = require("kiteconnect").KiteTicker;
-
 
 // Method defined for websocket
 wss.on('connection', async function connection(ws) {
+
+    let isClientConnected = true;
+
+    const KiteTicker = require("kiteconnect").KiteTicker;
 
     let credential = await get_table_data_by_array({
         table_name: 'kite_credentials',
@@ -45,7 +47,14 @@ wss.on('connection', async function connection(ws) {
     ticker.on("connect", subscribe);
 
     ticker.on("disconnect", () => {
-        console.log('Kite is Disconnected automatically')
+
+        if (isClientConnected) {
+            console.log('Reconnection Attempted')
+            ticker.autoReconnect(true)
+        } else {
+            console.log('Kite is Disconnected')
+        }
+
     });
 
     function onTicks(ticks) {
@@ -76,6 +85,11 @@ wss.on('connection', async function connection(ws) {
 
     ws.on('close', function close() {
         console.log('Client disconnected');
+
+        isClientConnected = false
+
+        ticker.disconnect()
+
     });
 });
 
@@ -176,8 +190,11 @@ function sanitizeString(str) {
 
 function checkAndRunUpdate() {
     const now = new Date();
-    if (now.getHours() === 9 && now.getMinutes() === 0) {
+    console.log('checked status')
+    if (now.getHours() === 11 && now.getMinutes() === 16) {
+        console.log('came here')
         update_csv();
+        console.log('came here 2')
     }
 }
 
