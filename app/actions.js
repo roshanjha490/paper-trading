@@ -273,6 +273,20 @@ export async function get_token_status() {
 
 export async function buy_instrument(formData) {
 
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+
+    // For NSE
+    if ((hours === 9 && minutes >= 15) || (hours > 9 && hours < 15) || (hours === 15 && minutes <= 30)) {
+    } else {
+        return {
+            status: false,
+            message: 'Trading Hours Not Open Yet',
+            client_message: 'Orders Can Be placed in trading hours only',
+        }
+    }
+
     const session = await getServerSession()
 
     let user_sql = 'SELECT users.* FROM `users` WHERE `email` = "' + session.user.email + '"';
@@ -322,7 +336,8 @@ export async function buy_instrument(formData) {
                                 instrument_type: formData.instrument_type,
                                 purchased_at: instrument.last_price,
                                 quantity_purchased: formData.quantity,
-                                stop_loss_amt: formData.stopLossAmount
+                                stop_loss_amt: formData.stopLossAmount,
+                                is_stop_loss_amt: 1
                             }]
                         })
 
@@ -410,6 +425,21 @@ export async function buy_instrument(formData) {
 
 
 export async function sell_instrument(formData) {
+
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+
+    // For NSE
+    if ((hours === 9 && minutes >= 15) || (hours > 9 && hours < 15) || (hours === 15 && minutes <= 30)) {
+    } else {
+        return {
+            status: false,
+            message: 'Trading Hours Not Open Yet',
+            client_message: 'Orders Can Be placed in trading hours only',
+        }
+    }
+
 
     let order_details = await get_table_data_by_array({
         table_name: 'orders',
@@ -510,14 +540,15 @@ export async function sell_instrument(formData) {
 
             return order_status
 
-
         } else {
+
             return {
                 status: false,
                 response: kite_credentials,
                 message: 'Access Token Expired',
                 client_message: 'Server Error Occured',
             }
+
         }
     } else {
         return {
@@ -527,9 +558,6 @@ export async function sell_instrument(formData) {
             client_message: 'Server Error Occured',
         }
     }
-
-
-
 }
 
 
@@ -537,7 +565,7 @@ export async function get_positions() {
 
     const session = await getServerSession()
 
-    let sql = 'SELECT o1.*, o1.quantity_purchased - COALESCE(SUM(o2.quantity_sold), 0) AS remaining_quantity FROM orders o1 LEFT JOIN orders o2 ON o1.id = o2.order_id AND o2.order_type = "SELL" INNER JOIN users u ON o1.user_id = u.id WHERE u.email = "' + session.user.email + '" AND o1.order_type = "PUR" GROUP BY o2.order_id';
+    let sql = 'SELECT * FROM (SELECT o1.*, o1.quantity_purchased - COALESCE(SUM(o2.quantity_sold), 0) AS remaining_quantity FROM orders o1 LEFT JOIN orders o2 ON o1.id = o2.order_id AND o2.order_type = "SELL" INNER JOIN users u ON o1.user_id = u.id WHERE u.email = "' + session.user.email + '" AND o1.order_type = "PUR" GROUP BY o1.id) AS subquery WHERE subquery.remaining_quantity > 0';
 
     let response = await run_raw_sql(sql)
 

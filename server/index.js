@@ -16,13 +16,12 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
+const KiteTicker = require("kiteconnect").KiteTicker;
 
 // Method defined for websocket
 wss.on('connection', async function connection(ws) {
 
     let isClientConnected = true;
-
-    const KiteTicker = require("kiteconnect").KiteTicker;
 
     let credential = await get_table_data_by_array({
         table_name: 'kite_credentials',
@@ -40,17 +39,30 @@ wss.on('connection', async function connection(ws) {
         access_token: credential.access_token,
     });
 
+    ticker.autoReconnect(true, 20, 5)
     ticker.connect();
 
     ticker.on("ticks", onTicks);
 
     ticker.on("connect", subscribe);
 
+    ticker.on("noreconnect", function () {
+        console.log("noreconnect");
+    });
+
+    ticker.on("reconnecting", function (reconnect_interval, reconnections) {
+        console.log(
+            "Reconnecting: attempt - ",
+            reconnections,
+            " innterval - ",
+            reconnect_interval
+        );
+    });
+
     ticker.on("disconnect", () => {
 
         if (isClientConnected) {
-            console.log('Reconnection Attempted')
-            ticker.autoReconnect(true)
+            console.log('Disconnected Automatically')
         } else {
             console.log('Kite is Disconnected')
         }
@@ -190,14 +202,140 @@ function sanitizeString(str) {
 
 function checkAndRunUpdate() {
     const now = new Date();
-    console.log('checked status')
-    if (now.getHours() === 11 && now.getMinutes() === 16) {
-        console.log('came here')
+    if (now.getHours() === 9 && now.getMinutes() === 4) {
         update_csv();
-        console.log('came here 2')
     }
 }
 
 
 // Check and run the update every minute
 setInterval(checkAndRunUpdate, 60000);
+
+
+
+
+
+async function checkStopLoss() {
+
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+
+    // For NSE
+    if ((hours === 9 && minutes >= 15) || (hours > 9 && hours < 15) || (hours === 15 && minutes <= 30)) {
+    } else {
+        return {
+            status: false,
+            message: 'Trading Hours Not Open Yet',
+            client_message: 'Orders Can Be placed in trading hours only',
+        }
+    }
+
+    let credential = await get_table_data_by_array({
+        table_name: 'kite_credentials',
+        where_array: {
+            user_id: 1,
+            is_expired: 0
+        },
+        order_by: 'id'
+    })
+
+    let items = await run_raw_sql("SELECT * FROM ( SELECT o1.*, o1.quantity_purchased - COALESCE(SUM(o2.quantity_sold), 0) AS remaining_quantity FROM orders o1 LEFT JOIN orders o2 ON o1.id = o2.order_id AND o2.order_type = 'SELL' WHERE o1.order_type = 'PUR' AND o1.is_stop_loss_amt = 1 GROUP BY o1.id ) AS subquery WHERE subquery.remaining_quantity > 0")
+
+    items = items[0]
+
+    const filteredTokens = await items.map(obj => obj.instrument_token);
+
+    credential = credential[0][0]
+
+    let ticker = new KiteTicker({
+        api_key: credential.api_key,
+        access_token: credential.access_token,
+    });
+
+    ticker.connect();
+
+    ticker.on("ticks", onTicks);
+
+    ticker.on("connect", subscribe);
+
+    function subscribe() {
+        ticker.unsubscribe(filteredTokens);
+        ticker.subscribe(filteredTokens);
+    }
+
+    ticker.on("connect", () => {
+        console.log('Stop Loss Function is running...')
+    });
+
+
+    async function onTicks(ticks) {
+
+        const executeStopLossPromises = await ticks.map(async tick => {
+
+            const currentPriceObj = await items.find(item => item.instrument_token === tick.instrument_token);
+
+            if (currentPriceObj && tick.last_price < currentPriceObj.stop_loss_amt) {
+
+                let insert_order = await insert_data_in_table({
+                    table_name: 'orders',
+                    data: [{
+                        instrument_token: currentPriceObj.instrument_token,
+                        trading_symbol: currentPriceObj.trading_symbol,
+                        exchange: currentPriceObj.exchange,
+                        user_id: currentPriceObj.user_id,
+                        order_type: 'SELL',
+                        instrument_type: currentPriceObj.instrument_type,
+                        sold_at: tick.last_price,
+                        quantity_sold: currentPriceObj.remaining_quantity,
+                        order_id: currentPriceObj.id
+                    }]
+                })
+
+                if (insert_order && insert_order.length > 0 && insert_order[0].hasOwnProperty('insertId')) {
+
+                    ticker.unsubscribe([tick.instrument_token]);
+
+                    items = items.filter(item => item.instrument_token !== currentPriceObj.instrument_token);
+
+                    return {
+                        status: true,
+                        response: JSON.stringify(insert_order),
+                        message: 'Order Inserted Successfully',
+                        client_message: 'Poisition Sold Successfully @₹' + tick.last_price,
+                    }
+                } else {
+                    return {
+                        status: false,
+                        response: JSON.stringify(insert_order),
+                        message: 'Order Not Inserted',
+                        client_message: 'Server Error Occured',
+                    }
+                }
+
+            } else {
+                return {
+                    status: false,
+                    message: 'Stop Loss Not Hit',
+                    client_message: 'Current Price is @₹' + tick.last_price,
+                }
+            }
+        })
+
+        const executeStopLossResults = await Promise.all(executeStopLossPromises);
+
+        if (executeStopLossResults.status) {
+            console.log(executeStopLossResults);
+        }
+
+    }
+
+    ticker.on("disconnect", () => {
+        console.log('Kite is Disconnected automatically')
+    });
+
+}
+
+
+// Check and run the update every minute
+setInterval(checkStopLoss, 10000);
