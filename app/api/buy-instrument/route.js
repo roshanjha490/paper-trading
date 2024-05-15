@@ -41,7 +41,6 @@ export async function POST(request) {
 
                 let [quote] = Object.values(result.data)
 
-
                 if (data.is_sl == 1) {
 
                     let insert_status = await insert_data_in_table({
