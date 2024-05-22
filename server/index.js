@@ -383,7 +383,7 @@ function sanitizeString(str) {
 
 function checkAndRunUpdate() {
     const now = new Date();
-    if (now.getHours() === 11 && now.getMinutes() === 7) {
+    if (now.getHours() === 9 && now.getMinutes() === 1) {
         update_csv();
     }
 }

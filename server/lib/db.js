@@ -1,29 +1,6 @@
-const { query } = require('express');
-const mysql = require('mysql2/promise');
-
-
-// Create the connection outside of the functions
-let connection = null;
-
-async function setupConnection() {
-    connection = await mysql.createConnection({
-        host: process.env.DB_HOST,
-        user: 'root',
-        database: 'paper_trading',
-        port: 3306,
-        password: ''
-    });
-
-    return connection
-}
-
+const { query } = require('./query.js');
 
 async function get_table_data_by_array({ table_name, where_array = {}, order_by, group_by = null, selected_field = null, find_num_rows = null, limit_no = null }) {
-
-    if (!connection) {
-        await setupConnection();
-    }
-
     try {
 
         let query_string = await new Promise((resolve, reject) => {
@@ -63,21 +40,15 @@ async function get_table_data_by_array({ table_name, where_array = {}, order_by,
 
         })
 
-        const result = await connection.query(query_string);
-
-        return result
+        const result = await query(query_string);
+        return result;
     } catch (err) {
-        return err
+        console.error('Error executing query:', err);
+        throw err;
     }
-
 }
 
-
 async function insert_data_in_table({ table_name, data }) {
-
-    if (!connection) {
-        await setupConnection();
-    }
 
     try {
 
@@ -119,38 +90,26 @@ async function insert_data_in_table({ table_name, data }) {
 
         })
 
-        const result = await connection.query(query_string);
-
-        return result
-
+        const result = await query(query_string);
+        return result;
     } catch (err) {
-        return err
+        console.error('Error executing query:', err);
+        throw err;
     }
-
 }
 
 async function run_raw_sql(sql) {
 
-    if (!connection) {
-        await setupConnection();
-    }
-
     try {
-        const result = await connection.query(sql);
-
-        return result
-
+        const result = await query(sql);
+        return result;
     } catch (error) {
-        return error
+        console.error('Error executing query:', error);
+        throw error;
     }
-
 }
 
 async function update_data_in_table({ table_name, where_array = {}, data = {} }) {
-
-    if (!connection) {
-        await setupConnection();
-    }
 
     try {
 
@@ -192,7 +151,7 @@ async function update_data_in_table({ table_name, where_array = {}, data = {} })
 
             });
 
-            const update_status = await connection.query(query_string);
+            const update_status = await query(query_string);
 
             if (update_status[0].hasOwnProperty('insertId')) {
 
@@ -230,16 +189,19 @@ async function update_data_in_table({ table_name, where_array = {}, data = {} })
         }
 
     } catch (err) {
-        return err
+        console.error('Error executing query:', err);
+        throw err;
     }
-
-
 }
 
+async function create_operations_log() {
+
+}
 
 module.exports = {
     get_table_data_by_array,
     insert_data_in_table,
     run_raw_sql,
-    update_data_in_table
+    update_data_in_table,
+    create_operations_log
 };
