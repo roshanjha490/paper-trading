@@ -127,7 +127,7 @@ const page = () => {
                                             <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                                 <p className={`whitespace-no-wrap ${calculateProfitLossClass(trade.sold_at, trade.purchased_at)}`}>
                                                     {
-                                                        trade.sold_at > trade.purchased_at ? (<small><b>₹{((trade.sold_at - trade.purchased_at).toFixed(2)) * trade.quantity_sold}</b></small>) : (<small><b>₹{((trade.purchased_at - trade.sold_at).toFixed(2)) * trade.quantity_sold}</b></small>)
+                                                        trade.sold_at > trade.purchased_at ? (<small><b>₹{(((trade.sold_at - trade.purchased_at).toFixed(2)) * trade.quantity_sold).toFixed(2)}</b></small>) : (<small><b>₹{(((trade.purchased_at - trade.sold_at).toFixed(2)) * trade.quantity_sold).toFixed(2)}</b></small>)
                                                     }
                                                 </p>
                                             </td>

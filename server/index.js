@@ -21,94 +21,98 @@ const KiteTicker = require("kiteconnect").KiteTicker;
 // Method defined for websocket
 wss.on('connection', async function connection(ws) {
 
+    let items = [];
+
     let isClientConnected = true;
 
-    let credential = await get_table_data_by_array({
-        table_name: 'kite_credentials',
-        where_array: {
-            user_id: 1,
-            is_expired: 0
-        },
-        order_by: 'id'
-    })
-
-    credential = credential[0][0]
-
-    let ticker = new KiteTicker({
-        api_key: credential.api_key,
-        access_token: credential.access_token,
-    });
-
-    ticker.autoReconnect(false)
-
-    ticker.connect();
-
-    ticker.on("ticks", onTicks);
-
-    ticker.on("connect", subscribe);
-
-    ticker.on("connect", () => {
-        console.log('Live Trade is running...')
-    });
-
-    ticker.on("noreconnect", function () {
-        console.log("noreconnect");
-    });
-
-    ticker.on("reconnect", function (reconnect_count, reconnect_interval) {
-        console.log("Reconnecting: attempt - ", reconnect_count, " interval - ", reconnect_interval);
-    });
-
-    ticker.on("disconnect", () => {
-
-        if (isClientConnected) {
-            console.log('Kite Disconnected Automatically In Live Trade')
-        } else {
-            console.log('Manual Disconnection CMD')
-        }
-
-    });
-
-    ticker.on("close", () => {
-        console.log('Closed Successfully')
-    })
-
-    function onTicks(ticks) {
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(ticks));
-        }
-    }
-
-    let items = [408065];
-
-    function subscribe() {
-        ticker.subscribe(items);
-        ticker.setMode(ticker.modeFull, items);
-    }
+    let isKiteConnected = false;
 
     ws.on('message', function incoming(message) {
-
-        console.log(message)
-
-        ticker.unsubscribe(items);
-
         items = JSON.parse(message);
-
-        ticker.subscribe(items);
-
-        ticker.setMode(ticker.modeFull, items);
     });
 
+    async function run_kite_websockket() {
+
+        const [[credential]] = await get_table_data_by_array({
+            table_name: 'kite_credentials',
+            where_array: {
+                user_id: 1,
+                is_expired: 0
+            },
+            order_by: 'id'
+        })
+
+        let ticker = new KiteTicker({
+            api_key: credential.api_key,
+            access_token: credential.access_token,
+        });
+
+        ticker.autoReconnect(false)
+
+        ticker.connect();
+
+        ticker.on("ticks", onTicks);
+
+        ticker.on("connect", subscribe);
+
+        ticker.on("connect", () => {
+            isKiteConnected = true;
+            console.log('Kite Connected')
+        });
+
+        function onTicks(ticks) {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(ticks));
+            }
+        }
+
+        function subscribe() {
+            ticker.subscribe(items);
+            ticker.setMode(ticker.modeFull, items);
+            console.log('Kite Subscribed with below items')
+            console.log(items)
+        }
+
+        async function closeKite() {
+            if (!isClientConnected) {
+                ticker.disconnect()
+                console.log('Kite Disconnect Request Sent via Client')
+            }
+        }
+
+        let closeIntervalId = setInterval(closeKite, 1000)
+
+        ticker.on("disconnect", () => {
+            if (!isClientConnected) {
+                clearInterval(closeIntervalId)
+            }
+
+            isKiteConnected = false;
+            console.log('Kite Disconnected')
+        });
+
+    }
+
+    async function checkKiteStatus() {
+        if (!isKiteConnected) {
+            if (items.length > 0) {
+                run_kite_websockket()
+            }
+        }
+    }
+
+    let checkKiteIntervalID = setInterval(checkKiteStatus, 1000)
+
     ws.on('close', function close() {
-        console.log('Client disconnected');
 
         isClientConnected = false
 
-        ticker.disconnect()
+        clearInterval(checkKiteIntervalID)
 
+        console.log('Client disconnected');
     });
-});
 
+});
 
 
 // Creation of Server

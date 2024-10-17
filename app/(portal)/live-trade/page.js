@@ -1,24 +1,89 @@
 "use client"
 import React from 'react';
 import { useState, useEffect } from 'react';
-import useWebSocket from './websocket';
 import { get_positions } from '@/app/actions';
 import SellFormModal from './SellFormModal';
 
 const Notes = () => {
 
-  const livePrices = useWebSocket()
+  // const messages = useWebSocket()
 
   const [positions, setPositions] = useState([]);
+
+  const [messages, setMessages] = useState([]);
 
   useEffect(() => {
     const fetchPositions = async () => {
       const response = await get_positions();
       setPositions(response);
+
+      const newInstrumentTokens = response.map(position => {
+        return { instrument_token: position.instrument_token, current_price: 0 };
+      });
+
+      setMessages(newInstrumentTokens);
     };
 
     fetchPositions();
   }, []);
+
+
+  useEffect(() => {
+
+    if (positions.length === 0) return;
+
+    const fetchData = async () => {
+
+      const socket = new WebSocket('ws://localhost:3001')
+
+      socket.onopen = async () => {
+
+        const jsonData = positions.map(position => position.instrument_token);
+
+        console.log(jsonData)
+
+        socket.send(JSON.stringify(jsonData));
+
+        console.log('Websocket Connection is Established')
+      }
+
+      socket.onmessage = (event) => {
+
+        const tick_messages = JSON.parse(event.data)
+
+        // console.log(tick_messages)
+
+        setMessages(prevMessages => {
+          // console.log(prevMessages)
+          const updatedMessages = prevMessages.map((message) => {
+            const correspondingTickData = tick_messages.find(
+              (tick) => tick.instrument_token === message.instrument_token
+            );
+            if (correspondingTickData) {
+              console.log(correspondingTickData.instrument_token + ': ' + correspondingTickData.last_price)
+              return {
+                ...message,
+                current_price: correspondingTickData.last_price
+              };
+            }
+            return message;
+          });
+
+          return updatedMessages;
+        });
+
+      };
+
+      socket.onclose = () => {
+        console.log('WebSocket connection closed');
+      };
+
+    }
+
+    fetchData()
+
+  }, [positions]);
+
 
   // Function to calculate profit or loss and return corresponding class
   const calculateProfitLossClass = (currentPrice, purchasedPrice) => {
@@ -77,7 +142,7 @@ const Notes = () => {
                 {
                   positions.map((position, index) => (
                     <>
-                      <tr>
+                      <tr key={index}>
 
                         <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                           <p className="text-gray-900 whitespace-no-wrap">
@@ -118,10 +183,10 @@ const Notes = () => {
 
                         <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                           <p className={`whitespace-no-wrap ${calculateProfitLossClass(
-                            livePrices.find((tick) => tick.instrument_token === position.instrument_token)?.current_price || 0,
+                            messages.find((tick) => tick.instrument_token === position.instrument_token)?.current_price || 0,
                             position.purchased_at
                           )}`}>
-                            <small><b>₹{livePrices.find((tick) => tick.instrument_token === position.instrument_token)?.current_price || 0}</b></small>
+                            <small><b>₹{messages.find((tick) => tick.instrument_token === position.instrument_token)?.current_price || 0}</b></small>
                           </p>
                         </td>
 

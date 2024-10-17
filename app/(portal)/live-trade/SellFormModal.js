@@ -42,13 +42,12 @@ const SellFormModal = ({ position, index, onClose }) => {
         toast.remove();
 
         const result = await sell_instrument(formData)
-        console.log(result)
 
         if (result.status) {
             toast.success(result.client_message)
             reset()
             onClose()
-            router.push('/live-trade');
+            router.push('/order-history');
         } else {
             toast.error(result.client_message)
         }

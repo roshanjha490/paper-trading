@@ -25,6 +25,3 @@ export async function POST(request) {
     //     result: await insert_data_in_table(sql2)
     // })
 }
-
-
-

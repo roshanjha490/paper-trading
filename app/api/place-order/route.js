@@ -43,6 +43,13 @@ export async function POST(request) {
 
                 if (data.is_sl == 1) {
 
+                    if (data.sl_price > quote.last_price) {
+                        return {
+                            status: false,
+                            message: 'SL Price is greater than Current Price of instrument which is @' + quote.last_price,
+                        }
+                    }
+
                     let insert_status = await insert_data_in_table({
                         table_name: 'orders',
                         data: [{
@@ -64,7 +71,8 @@ export async function POST(request) {
                             status: true,
                             response: JSON.stringify(insert_status),
                             message: 'Order Inserted Successfully',
-                            client_message: 'Order Placed Successfully @₹' + instrument.last_price,
+                            client_message: 'Order Placed Successfully @₹' + quote.last_price,
+                            order_id: insert_status[0].insertId
                         }
                     } else {
                         return {
@@ -97,7 +105,8 @@ export async function POST(request) {
                             status: true,
                             response: JSON.stringify(insert_status),
                             message: 'Order Inserted Successfully',
-                            client_message: 'Order Placed Successfully @₹' + instrument.last_price,
+                            client_message: 'Order Placed Successfully @₹' + quote.last_price,
+                            order_id: insert_status[0].insertId
                         }
                     } else {
                         return {
@@ -108,6 +117,11 @@ export async function POST(request) {
                         }
                     }
 
+                }
+
+                return {
+                    status: false,
+                    message: 'Send Request Properly'
                 }
 
             })
